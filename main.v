@@ -1,6 +1,7 @@
 import gg
 import gx
 import rand
+import neural
 
 struct Game {
 mut:
