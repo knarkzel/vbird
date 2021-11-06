@@ -15,7 +15,7 @@ struct Bird {
 mut:
 	x        int = 256
 	y        int
-	size     int
+	size     int = 96
 	velocity int
 }
 
@@ -59,13 +59,10 @@ fn collides(bird Bird, pipe Pipe) bool {
 fn main() {
 	mut game := &Game{
 		gg: 0
-		bird: Bird{
-			size: 96
-		}
 		pipes: pipes()
 	}
 	game.gg = gg.new_context(
-		bg_color: gx.rgb(0xC9, 0xCE, 0xDC)
+		bg_color: gx.rgb(201, 206, 220)
 		window_title: 'Flappy bird'
 		frame_fn: frame
 		user_data: game
@@ -76,25 +73,27 @@ fn main() {
 
 // Draw / update logic
 fn frame(mut game Game) {
-	game.time += 1
+	game.gg.begin()
+
+	// Timer update logic
+	game.time++
 	if game.time > 90 {
 		game.pipes << pipes()
 		game.time = 0
 	}
 
-	game.gg.begin()
-
-	game.bird.update()
-	game.gg.draw_rect(game.bird.x, game.bird.y, game.bird.size, game.bird.size, gx.rgb(0x1A,
-		0x18, 0x22))
-	if game.pipes.any(collides(game.bird, it)) || game.bird.y < 0
-		|| game.bird.y + game.bird.size > 1080 {
+	// Bird draw / update logic
+	mut bird := &game.bird
+	bird.update()
+	game.gg.draw_rect(bird.x, bird.y, bird.size, bird.size, gx.rgb(26, 24, 34))
+	if game.pipes.any(collides(bird, it)) || bird.y < 0 || bird.y + bird.size > 1080 {
 		exit(0)
 	}
 
+	// Pipe draw / update logic
 	for mut pipe in game.pipes {
 		pipe.update()
-		game.gg.draw_rect(pipe.x, pipe.y, pipe.w, pipe.h, gx.rgb(0x8A, 0xC6, 0xEC))
+		game.gg.draw_rect(pipe.x, pipe.y, pipe.w, pipe.h, gx.rgb(138, 198, 236))
 	}
 
 	game.gg.end()
