@@ -1,25 +1,25 @@
 module neural
 
 import rand
-import math { pow }
+import math { powf }
 
-fn sigmoid(x f64) f64 {
-	return 1 / (1 + pow(math.e, -1))
+fn sigmoid(x f32) f32 {
+	return 1 / (1 + powf(math.e, -1))
 }
 
 struct Node {
 mut:
-	data    f64
-	bias    f64
-	weights []f64
+	data    f32
+	bias    f32
+	weights []f32
 }
 
-fn (n Node) weighted(index int) f64 {
+fn (n Node) weighted(index int) f32 {
 	return n.data * n.weights[index] + n.bias
 }
 
 fn (nx Node) + (ny Node) Node {
-	mut weights := []f64{}
+	mut weights := []f32{}
 	for i in 0 .. nx.weights.len {
 		weights << (nx.weights[i] + ny.weights[i]) / 2
 	}
@@ -29,24 +29,24 @@ fn (nx Node) + (ny Node) Node {
 	}
 }
 
-struct Network {
+pub struct Network {
 mut:
 	nodes [][]Node
 }
 
 // network returns a new network created by the passed in structure
-pub fn network(structure []int) {
+pub fn network(structure []int) Network {
 	mut network := Network{}
 	// Input layer and hidden layers
 	for i in 0 .. structure.len - 1 {
 		mut nodes := []Node{}
 		for _ in 0 .. structure[i] {
-			mut weights := []f64{}
+			mut weights := []f32{}
 			for _ in 0 .. structure[i + 1] {
-				weights << rand.f64_in_range(-1, 1)
+				weights << rand.f32_in_range(-1, 1)
 			}
 			nodes << Node{
-				bias: rand.f64_in_range(-1, 1)
+				bias: rand.f32_in_range(-1, 1)
 				weights: weights
 			}
 		}
@@ -54,10 +54,11 @@ pub fn network(structure []int) {
 	}
 	// Output layer
 	network.nodes << [Node{}].repeat(structure.last())
+	return network
 }
 
 // process feeds input into the network
-pub fn (mut n Network) process(input []f64) {
+pub fn (mut n Network) process(input []f32) {
 	// set input data for each node in first layer
 	for i in 0 .. input.len {
 		n.nodes[0][i].data = input[i]
@@ -65,7 +66,7 @@ pub fn (mut n Network) process(input []f64) {
 	// feed input to next layer and process with sigmoid of sum
 	for i in 1 .. n.nodes.len {
 		for j in 0 .. n.nodes[i].len {
-			mut sum := 0.0
+			mut sum := f32(0)
 			for node in n.nodes[i - 1] {
 				sum += node.weighted(j)
 			}
@@ -75,7 +76,7 @@ pub fn (mut n Network) process(input []f64) {
 }
 
 // output returns the data from network after processing input
-pub fn (n Network) output() []f64 {
+pub fn (n Network) output() []f32 {
 	return n.nodes.last().map(it.data)
 }
 
@@ -83,11 +84,11 @@ pub fn (n Network) output() []f64 {
 pub fn (mut n Network) mutate() {
 	for mut layer in n.nodes {
 		for mut node in layer {
-			if rand.f64() < 0.2 {
-				node.bias *= rand.f64_in_range(0.5, 1)
-				node.bias += rand.f64_in_range(0, 0.1)
+			if rand.f32() < 0.2 {
+				node.bias *= rand.f32_in_range(0.5, 1)
+				node.bias += rand.f32_in_range(0, 0.1)
 				for mut weight in node.weights {
-					weight *= rand.f64_in_range(0.5, 1)
+					weight *= rand.f32_in_range(0.5, 1)
 				}
 			}
 		}
