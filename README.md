@@ -1,6 +1,6 @@
 # vbird
 
-`vbird` is an implementation of Flappy Bird in V using neural networks. `space`
+`vbird` is an implementation of Flappy Bird using deep learning in V. `space`
 to toggle speedup, and `escape` to close window.
 
 ```bash
