@@ -1,10 +1,9 @@
 module neural
 
 import rand
-import math { powf }
 
-fn sigmoid(x f32) f32 {
-	return 1 / (1 + powf(math.e, -x))
+fn relu(x f32) f32 {
+	return if x < 0 { 0.01 * x } else { 1 }
 }
 
 struct Node {
@@ -60,7 +59,7 @@ pub fn (mut n Network) process(input []f32) {
 			for node in n.nodes[i - 1] {
 				sum += node.data * node.weights[j] + node.bias
 			}
-			n.nodes[i][j].data = sigmoid(sum)
+			n.nodes[i][j].data = relu(sum)
 		}
 	}
 }
