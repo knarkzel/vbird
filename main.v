@@ -43,6 +43,7 @@ fn (mut g Game) reset() {
 	for mut bird in g.birds {
 		bird.y = 1080 / 3
 		bird.velocity = 0
+		bird.network.mutate()
 	}
 }
 
