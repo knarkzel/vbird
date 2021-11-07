@@ -37,14 +37,21 @@ mut:
 }
 
 fn (mut g Game) reset() {
+	g.pipes.clear()
 	g.pipes = pipes()
-	g.birds = g.dead_birds
-	g.dead_birds = []
-	for mut bird in g.birds {
-		bird.y = 1080 / 3
-		bird.velocity = 0
-		bird.network.mutate()
+
+	capacity := g.dead_birds.len
+	amount := int(g.dead_birds.len / 10)
+	g.dead_birds.sort(a.fitness > b.fitness)
+	for g.birds.len < capacity {
+		bx := rand.int_in_range(0, amount)
+		by := rand.int_in_range(0, amount)
+		mut network := g.dead_birds[bx].network.crossover(g.dead_birds[by].network)
+		network.mutate()
+		g.birds << Bird{ network: network }
 	}
+	g.birds.len
+	g.dead_birds = []
 }
 
 // Bird logic
@@ -54,6 +61,7 @@ mut:
 	y        f32 = 1080 / 3
 	size     f32 = 96
 	velocity f32
+	fitness  f32
 	network  Network
 }
 
@@ -69,7 +77,7 @@ mut:
 fn pipes() []Pipe {
 	top := Pipe{
 		y: 0
-		h: rand.intn(128 + 1080 / 2)
+		h: rand.intn(1080 / 2)
 	}
 	bottom := Pipe{
 		y: top.h + 128 * 3
@@ -78,42 +86,37 @@ fn pipes() []Pipe {
 	return [top, bottom]
 }
 
-// Collision
 fn collides(bird Bird, pipe Pipe) bool {
 	return bird.x < pipe.x + pipe.w && bird.x + bird.size > pipe.x && bird.y < pipe.y + pipe.h
 		&& bird.size + bird.y > pipe.y
 }
 
-// Draw / update logic
 fn frame(mut game Game) {
 	game.gg.begin()
 
-	// Timer update logic
 	game.time++
 	if game.time > 90 {
 		game.pipes << pipes()
 		game.time = 0
 	}
 
-	// Bird draw / update logic
 	for mut bird in game.birds {
-		// Movement
-		bird.velocity -= 1
+		// movement
+		bird.fitness++
+		bird.velocity--
 		bird.y -= bird.velocity
 
-		// Find closest pipe, pass to network
+		// find closest pipe, pass to network
 		closest := game.pipes.filter(it.x > 256)
-		top := closest[0].y / 1080.0
-		bottom := closest[1].y / 1080.0
-		y := bird.y / 1080.0
-		bird.network.process([top, bottom, y])
+		y := bird.y / 1080
+		bottom := closest[1].y / 1080
+		top := (closest[0].y + closest[0].h) / 1080
+		bird.network.process([y, bottom, top])
 
-		// React to network output
 		if bird.network.output()[0] > 0.5 {
 			bird.velocity = 20
 		}
 
-		// Drawing
 		game.gg.draw_rect(bird.x, bird.y, bird.size, bird.size, gx.rgb(26, 24, 34))
 		if game.pipes.any(collides(bird, it)) || bird.y < 0 || bird.y + bird.size > 1080 {
 			index := game.birds.index(*bird)
@@ -122,7 +125,6 @@ fn frame(mut game Game) {
 		}
 	}
 
-	// Pipe draw / update logic
 	for mut pipe in game.pipes {
 		pipe.x -= 5
 		game.gg.draw_rect(pipe.x, pipe.y, pipe.w, pipe.h, gx.rgb(138, 198, 236))
@@ -132,7 +134,6 @@ fn frame(mut game Game) {
 		}
 	}
 
-	// Reset if all birds are dead
 	if game.birds.len <= 0 {
 		game.reset()
 	}
