@@ -5,17 +5,37 @@ import neural
 
 struct Game {
 mut:
-	gg    &gg.Context
-	time  int
-	bird  Bird
-	pipes []Pipe
+	gg         &gg.Context
+	time       int
+	birds      []Bird
+	dead_birds []Bird
+	pipes      []Pipe
+}
+
+// Initialize window and state, then run
+fn main() {
+	mut game := &Game{
+		gg: 0
+		pipes: pipes()
+	}
+	for _ in 0 .. 100 {
+		game.birds << Bird{}
+	}
+	game.gg = gg.new_context(
+		bg_color: gx.rgb(201, 206, 220)
+		window_title: 'Flappy bird'
+		frame_fn: frame
+		user_data: game
+		event_fn: on_event
+	)
+	game.gg.run()
 }
 
 // Bird logic
 struct Bird {
 mut:
 	x        int = 256
-	y        int
+	y        int = 1080 / 3
 	size     int = 96
 	velocity int
 }
@@ -56,22 +76,6 @@ fn collides(bird Bird, pipe Pipe) bool {
 		&& bird.size + bird.y > pipe.y
 }
 
-// Initialize window and state, then run
-fn main() {
-	mut game := &Game{
-		gg: 0
-		pipes: pipes()
-	}
-	game.gg = gg.new_context(
-		bg_color: gx.rgb(201, 206, 220)
-		window_title: 'Flappy bird'
-		frame_fn: frame
-		user_data: game
-		event_fn: on_event
-	)
-	game.gg.run()
-}
-
 // Draw / update logic
 fn frame(mut game Game) {
 	game.gg.begin()
@@ -84,11 +88,14 @@ fn frame(mut game Game) {
 	}
 
 	// Bird draw / update logic
-	mut bird := &game.bird
-	bird.update()
-	game.gg.draw_rect(bird.x, bird.y, bird.size, bird.size, gx.rgb(26, 24, 34))
-	if game.pipes.any(collides(bird, it)) || bird.y < 0 || bird.y + bird.size > 1080 {
-		exit(0)
+	for mut bird in game.birds {
+		bird.update()
+		game.gg.draw_rect(bird.x, bird.y, bird.size, bird.size, gx.rgb(26, 24, 34))
+		if game.pipes.any(collides(bird, it)) || bird.y < 0 || bird.y + bird.size > 1080 {
+			index := game.birds.index(bird)	
+			game.dead_birds << bird
+			game.birds.delete(index)
+		}
 	}
 
 	// Pipe draw / update logic
@@ -105,7 +112,6 @@ fn on_event(e &gg.Event, mut game Game) {
 	if e.typ == .key_down {
 		match e.key_code {
 			.escape { exit(0) }
-			.space { game.bird.velocity = 20 }
 			else {}
 		}
 	}
