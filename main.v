@@ -11,7 +11,7 @@ fn main() {
 		gg: 0
 		pipes: pipes()
 	}
-	for _ in 0 .. 100 {
+	for _ in 0 .. 250 {
 		game.birds << Bird{
 			network: neural.network([3, 10, 1])
 		}
@@ -30,6 +30,7 @@ fn main() {
 struct Game {
 mut:
 	gg         &gg.Context
+	speedup    int = 1
 	time       int
 	birds      []Bird
 	dead_birds []Bird
@@ -39,18 +40,27 @@ mut:
 fn (mut g Game) reset() {
 	g.pipes.clear()
 	g.pipes = pipes()
+	g.time = 0
 
 	capacity := g.dead_birds.len
-	amount := int(g.dead_birds.len / 10)
+	selection := if g.dead_birds.len < 5 { capacity } else { 5 }
 	g.dead_birds.sort(a.fitness > b.fitness)
-	for g.birds.len < capacity {
-		bx := rand.int_in_range(0, amount)
-		by := rand.int_in_range(0, amount)
+	// fill 50% with good birds
+	for g.birds.len < g.dead_birds.len / 2 {
+		bx := rand.int_in_range(0, selection)
+		by := rand.int_in_range(0, selection)
 		mut network := g.dead_birds[bx].network.crossover(g.dead_birds[by].network)
 		network.mutate()
-		g.birds << Bird{ network: network }
+		g.birds << Bird{
+			network: network
+		}
 	}
-	g.birds.len
+	// fill rest 50% with new birds
+	for g.birds.len < capacity {
+		g.birds << Bird{
+			network: neural.network([3, 10, 1])
+		}
+	}
 	g.dead_birds = []
 }
 
@@ -91,61 +101,76 @@ fn collides(bird Bird, pipe Pipe) bool {
 		&& bird.size + bird.y > pipe.y
 }
 
-fn frame(mut game Game) {
-	game.gg.begin()
-
-	game.time++
-	if game.time > 90 {
-		game.pipes << pipes()
-		game.time = 0
-	}
-
-	for mut bird in game.birds {
-		// movement
-		bird.fitness++
-		bird.velocity--
-		bird.y -= bird.velocity
-
-		// find closest pipe, pass to network
-		closest := game.pipes.filter(it.x > 256)
-		y := bird.y / 1080
-		bottom := closest[1].y / 1080
-		top := (closest[0].y + closest[0].h) / 1080
-		bird.network.process([y, bottom, top])
-
-		if bird.network.output()[0] > 0.5 {
-			bird.velocity = 20
+fn frame(mut g Game) {
+	for _ in 0 .. g.speedup {
+		g.time++
+		if g.time > 90 {
+			g.pipes << pipes()
+			g.time = 0
 		}
 
-		game.gg.draw_rect(bird.x, bird.y, bird.size, bird.size, gx.rgb(26, 24, 34))
-		if game.pipes.any(collides(bird, it)) || bird.y < 0 || bird.y + bird.size > 1080 {
-			index := game.birds.index(*bird)
-			game.dead_birds << bird
-			game.birds.delete(index)
+		for mut bird in g.birds {
+			bird.fitness++
+			bird.velocity--
+			bird.y -= bird.velocity
+
+			closest := g.pipes.filter(it.x + it.w > 256)
+			y := bird.y / 1080
+			bottom := closest[1].y / 1080
+			top := (closest[0].y + closest[0].h) / 1080
+			bird.network.process([y, bottom, top])
+
+			if bird.network.output()[0] > 0.5 {
+				bird.velocity = 20
+			}
+
+			if g.pipes.any(collides(bird, it)) || bird.y < 0 || bird.y + bird.size > 1080 {
+				index := g.birds.index(*bird)
+				g.dead_birds << bird
+				g.birds.delete(index)
+			}
+		}
+
+		for mut pipe in g.pipes {
+			pipe.x -= 5
+			if pipe.x + pipe.w < 0 {
+				index := g.pipes.index(*pipe)
+				g.pipes.delete(index)
+			}
+		}
+
+		if g.birds.len <= 0 {
+			g.reset()
 		}
 	}
 
-	for mut pipe in game.pipes {
-		pipe.x -= 5
-		game.gg.draw_rect(pipe.x, pipe.y, pipe.w, pipe.h, gx.rgb(138, 198, 236))
-		if pipe.x + pipe.w < 0 {
-			index := game.pipes.index(*pipe)
-			game.pipes.delete(index)
-		}
+	g.gg.begin()
+
+	for bird in g.birds {
+		g.gg.draw_rect(bird.x, bird.y, bird.size, bird.size, gx.rgb(26, 24, 34))
 	}
 
-	if game.birds.len <= 0 {
-		game.reset()
+	for pipe in g.pipes {
+		g.gg.draw_rect(pipe.x, pipe.y, pipe.w, pipe.h, gx.rgb(138, 198, 236))
 	}
 
-	game.gg.end()
+	g.gg.end()
 }
 
 // Key logic
-fn on_event(e &gg.Event, mut game Game) {
+fn on_event(e &gg.Event, mut g Game) {
 	if e.typ == .key_down {
 		match e.key_code {
-			.escape { exit(0) }
+			.escape {
+				exit(0)
+			}
+			.space {
+				if g.speedup == 1 {
+					g.speedup = 20
+				} else {
+					g.speedup = 1
+				}
+			}
 			else {}
 		}
 	}
